@@ -9,8 +9,11 @@ mod clients;
 mod config;
 mod handlers;
 mod model;
+#[cfg(test)]
+mod test_utils;
 
 use cli::{Cli, Commands};
+use tracing::info;
 
 use crate::clients::TiledClient;
 use crate::config::GlazedConfig;
@@ -19,12 +22,20 @@ use crate::model::TiledQuery;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn error::Error>> {
+    let subscriber = tracing_subscriber::FmtSubscriber::new();
+    tracing::subscriber::set_global_default(subscriber)?;
+
     let cli = Cli::init();
+    let config;
 
-    let config_filepath = cli.config_filepath.unwrap_or("config.toml".into());
-
-    let config = GlazedConfig::from_file(&config_filepath)?;
-
+    if let Some(config_filepath) = cli.config_filepath {
+        info!("Loading config from {config_filepath:?}");
+        config = GlazedConfig::from_file(&config_filepath)?;
+        info!("Config loaded");
+    } else {
+        info!("Using default config");
+        config = GlazedConfig::default();
+    }
     match cli.command {
         Commands::Serve => serve(config).await,
     }
@@ -46,8 +57,7 @@ async fn serve(config: GlazedConfig) -> Result<(), Box<dyn error::Error>> {
         .layer(Extension(schema));
 
     let listener = tokio::net::TcpListener::bind(config.bind_address).await?;
+    info!("Serving glazed at {:?}", config.bind_address);
 
-    axum::serve(listener, app).await?;
-
-    Ok(())
+    Ok(axum::serve(listener, app).await?)
 }

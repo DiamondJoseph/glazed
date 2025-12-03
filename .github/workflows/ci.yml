@@ -11,8 +11,8 @@ on:
 
 
 jobs:
-  rust:
-    uses: ./.github/workflows/_rust.yml
+  # rust:
+  #   uses: ./.github/workflows/_rust.yml
   
   container:
     needs: rust
